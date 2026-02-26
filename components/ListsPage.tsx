@@ -76,7 +76,7 @@ export function ListsPage({ lists, setLists, onSelectCompany, toast }: Props) {
             <div
               key={l.id}
               onClick={() => setActive(l.id)}
-              style={{ background: "var(--bg2)", border: `1px solid ${active === l.id ? "rgba(245,158,11,0.35)" : "var(--rim)"}`, borderRadius: 8, padding: "12px 13px", cursor: "pointer", background: active === l.id ? "rgba(245,158,11,0.05)" : "var(--bg2)" } as React.CSSProperties}
+              style={{ border: `1px solid ${active === l.id ? "rgba(245,158,11,0.35)" : "var(--rim)"}`, borderRadius: 8, padding: "12px 13px", cursor: "pointer", background: active === l.id ? "rgba(245,158,11,0.05)" : "var(--bg2)" } as React.CSSProperties}
             >
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
                 <div>
