@@ -1,0 +1,46 @@
+/* components/AppShell.module.css */
+
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* sidebar */
+.sidebar { width: 212px; min-width: 212px; background: var(--bg2); border-right: 1px solid var(--rim); display: flex; flex-direction: column; }
+.logo { display: flex; align-items: center; gap: 9px; padding: 16px 14px 13px; border-bottom: 1px solid var(--rim); flex-shrink: 0; }
+.logoMark { width: 30px; height: 30px; background: var(--gold); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #000; flex-shrink: 0; }
+.logoName { font-size: 14px; font-weight: 800; letter-spacing: -0.5px; }
+.logoSub { font-size: 9px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; font-family: var(--mono); }
+.nav { flex: 1; padding: 10px 7px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.navSec { font-size: 9px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; padding: 8px 9px 3px; font-family: var(--mono); }
+.navBtn { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--text2); background: none; border: none; width: 100%; text-align: left; cursor: pointer; transition: all 0.13s; }
+.navBtn:hover { background: var(--bg3); color: var(--text); }
+.navBtnActive { background: var(--goldbg) !important; color: var(--gold) !important; font-weight: 600 !important; }
+.navIcon { font-size: 13px; width: 15px; text-align: center; flex-shrink: 0; }
+.navBadge { margin-left: auto; font-size: 9px; font-family: var(--mono); background: var(--bg3); color: var(--text3); padding: 1px 6px; border-radius: 10px; border: 1px solid var(--rim); }
+.sidebarFooter { padding: 10px; border-top: 1px solid var(--rim); flex-shrink: 0; }
+.thesisBox { background: var(--goldbg); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 10px 11px; }
+.thesisBoxLabel { font-size: 9px; color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase; font-family: var(--mono); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+.thesisDot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: blink 2s ease-in-out infinite; flex-shrink: 0; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.thesisBoxText { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* main */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.topbar { height: 50px; background: var(--bg2); border-bottom: 1px solid var(--rim); display: flex; align-items: center; padding: 0 16px; gap: 10px; flex-shrink: 0; }
+.topbarTitle { font-size: 13px; font-weight: 700; letter-spacing: -0.3px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.topbarSep { width: 1px; height: 14px; background: var(--rim); flex-shrink: 0; }
+.searchWrap { flex: 1; max-width: 380px; position: relative; }
+.searchInput { width: 100%; padding: 5px 10px 5px 28px; background: var(--bg3); border: 1px solid var(--rim); border-radius: 6px; color: var(--text); font-size: 12px; transition: border-color 0.13s; }
+.searchInput:focus { border-color: var(--gold); }
+.searchInput::placeholder { color: var(--text3); }
+.searchIcon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 12px; pointer-events: none; }
+.topbarRight { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+/* shared buttons */
+.btn { padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.13s; white-space: nowrap; font-family: var(--font); }
+.btnGold { background: var(--gold); color: #000; }
+.btnGold:hover { background: var(--gold2); }
+.btnGhost { background: none; color: var(--text2); border: 1px solid var(--rim); }
+.btnGhost:hover { border-color: var(--rim2); color: var(--text); background: var(--bg3); }
+.btnSm { padding: 3px 9px; font-size: 10px; }
+
+/* shared kbd */
+.kbd { display: inline-flex; align-items: center; padding: 1px 5px; background: var(--bg3); border: 1px solid var(--rim2); border-radius: 3px; font-size: 9px; font-family: var(--mono); color: var(--text3); }
