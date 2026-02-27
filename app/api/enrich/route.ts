@@ -47,16 +47,11 @@ function pruneRateLimitStore() {
 
 function buildPageList(website: string): string[] {
   const base = website.replace(/\/$/, "");
+  // 3 pages only — keeps scraping fast and avoids Gemini free tier rate limits
   return [
     base,
     `${base}/about`,
-    `${base}/about-us`,
-    `${base}/product`,
-    `${base}/blog`,
     `${base}/careers`,
-    `${base}/jobs`,
-    `${base}/changelog`,
-    `${base}/updates`,
   ];
 }
 
@@ -237,7 +232,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
 }`;
 
   // Gemini 1.5 Flash — free tier endpoint
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
     method: "POST",
