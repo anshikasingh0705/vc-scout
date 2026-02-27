@@ -231,8 +231,8 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   "sources": []
 }`;
 
-  // Gemini 1.5 Flash — free tier endpoint
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  // FIX: Use gemini-1.5-flash (stable) + responseMimeType to force JSON output
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -242,6 +242,8 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 1024,
+        // Forces the model to return valid JSON — eliminates markdown fences and preamble
+        responseMimeType: "application/json",
       },
     }),
   });
@@ -249,7 +251,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   if (!res.ok) {
     const errText = await res.text();
     console.error(`[gemini] ${res.status}:`, errText);
-    if (res.status === 400) throw new Error("Invalid Gemini API key. Check GEMINI_API_KEY in .env.local.");
+    if (res.status === 400) throw new Error("Invalid Gemini API key. Check GEMINI_API_KEY in Vercel environment variables.");
     if (res.status === 429) throw new Error("Gemini rate limit hit. Wait a moment and try again.");
     throw new Error(`Gemini API error: ${res.status}`);
   }
@@ -262,28 +264,23 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
 
   if (!rawText) throw new Error("Gemini returned an empty response. Try again.");
 
-  // Robustly extract JSON from Gemini response
-  // Gemini 2.5 often wraps output in markdown fences and adds preamble text
+  // Parse JSON — with responseMimeType set, this should always be clean JSON
   let parsed;
   try {
-    // Strategy 1: strip fences and parse directly
-    const stripped = rawText
-      .replace(/^```(?:json)?\s*/im, "")
-      .replace(/\s*```\s*$/im, "")
-      .trim();
-    parsed = JSON.parse(stripped);
+    parsed = JSON.parse(rawText);
   } catch {
     try {
-      // Strategy 2: find the first { ... } block in the entire response
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("no JSON object found");
-      parsed = JSON.parse(match[0]);
+      // Fallback: strip any accidental fences and retry
+      const stripped = rawText
+        .replace(/^```(?:json)?\s*/im, "")
+        .replace(/\s*```\s*$/im, "")
+        .trim();
+      parsed = JSON.parse(stripped);
     } catch {
-      // Strategy 3: find last complete JSON object (sometimes model adds trailing text)
-      const matches = [...rawText.matchAll(/\{[\s\S]*?\}/g)];
-      const longest = matches.sort((a, b) => b[0].length - a[0].length)[0];
-      if (!longest) throw new Error("Could not parse Gemini response as JSON. Try again.");
-      parsed = JSON.parse(longest[0]);
+      // Last resort: extract the first complete JSON object
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Could not parse Gemini response as JSON. Try again.");
+      parsed = JSON.parse(match[0]);
     }
   }
 
@@ -306,7 +303,7 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Server misconfiguration: GEMINI_API_KEY not set in .env.local" },
+      { error: "Server misconfiguration: GEMINI_API_KEY not set in Vercel environment variables." },
       { status: 500 }
     );
   }
