@@ -1,12 +1,7 @@
 // app/api/enrich/route.ts
 //
-// SERVER-SIDE ONLY — API key never leaves this file.
+// SERVER-SIDE ONLY - API key never leaves this file.
 // Uses Google Gemini (free tier, no credit card needed).
-//
-// Pipeline:
-//   [1] Parallel Fetch+Retry — all pages fire simultaneously
-//   [2] maxDuration = 30     — override Vercel's 10s default
-//   [3] Rate limiting        — 5 enrichments / 60s per IP
 
 import { NextRequest, NextResponse } from "next/server";
 import type { EnrichRequest, EnrichmentResult } from "@/types";
@@ -14,7 +9,7 @@ import type { EnrichRequest, EnrichmentResult } from "@/types";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
-// ─── [3] RATE LIMITER ────────────────────────────────────────────────────────
+// --- RATE LIMITER ---
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -43,19 +38,14 @@ function pruneRateLimitStore() {
   }
 }
 
-// ─── 1. URL ROUTER ───────────────────────────────────────────────────────────
+// --- URL ROUTER ---
 
 function buildPageList(website: string): string[] {
   const base = website.replace(/\/$/, "");
-  // 3 pages only — keeps scraping fast and avoids Gemini free tier rate limits
-  return [
-    base,
-    `${base}/about`,
-    `${base}/careers`,
-  ];
+  return [base, `${base}/about`, `${base}/careers`];
 }
 
-// ─── 2. FETCH WITH RETRY ─────────────────────────────────────────────────────
+// --- FETCH WITH RETRY ---
 
 const FETCH_TIMEOUT_MS = 7_000;
 const MAX_ATTEMPTS = 3;
@@ -87,7 +77,7 @@ async function fetchWithRetry(url: string): Promise<Response | null> {
   return null;
 }
 
-// ─── 3. HTML → TEXT ──────────────────────────────────────────────────────────
+// --- HTML TO TEXT ---
 
 const MAX_CHARS_PER_PAGE = 3_000;
 const MAX_TOTAL_CHARS = 10_000;
@@ -114,7 +104,7 @@ function isBlockedPage(text: string): boolean {
   );
 }
 
-// ─── [1] PARALLEL SCRAPE ─────────────────────────────────────────────────────
+// --- PARALLEL SCRAPE ---
 
 interface ScrapeResult {
   scrapedText: string;
@@ -158,9 +148,8 @@ async function scrapeCompany(website: string): Promise<ScrapeResult> {
   };
 }
 
-// ─── 4. GEMINI LLM EXTRACTION ────────────────────────────────────────────────
-// Uses Gemini 1.5 Flash — fast, free tier, no credit card required.
-// Free limits: 15 requests/min, 1500 requests/day — plenty for this use case.
+// --- GEMINI LLM EXTRACTION ---
+// gemini-2.0-flash-lite: free tier, 30 RPM, fast, reliable JSON output
 
 async function callGemini(
   apiKey: string,
@@ -182,7 +171,7 @@ Company metadata:
 Real scraped content:
 ${scrape.scrapedText}
 
-Return ONLY a valid JSON object — no markdown fences, no explanation, just the JSON:
+Return ONLY a valid JSON object - no markdown fences, no explanation, just the JSON:
 {
   "summary": "2 crisp sentences: what they build based on scraped text, and who buys it",
   "whatTheyDo": [
@@ -201,7 +190,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation, just the
   ],
   "sources": ${JSON.stringify(scrape.successfulUrls)}
 }`
-    : `You are a VC research analyst. I could not scrape ${company.name}'s website — all pages blocked or unreachable. Use metadata to generate the best profile you can, and flag it clearly in signals.
+    : `You are a VC research analyst. I could not scrape ${company.name}'s website - all pages blocked or unreachable. Use metadata to generate the best profile you can, and flag it clearly in signals.
 
 Company: ${company.name}
 Website: ${company.website}
@@ -211,7 +200,7 @@ Stage: ${company.stage}
 Tags: ${company.tags?.join(", ")}
 Founded: ${company.founded}
 
-Return ONLY a valid JSON object — no markdown fences, no explanation:
+Return ONLY a valid JSON object - no markdown fences, no explanation:
 {
   "summary": "2 crisp sentences based on available metadata only",
   "whatTheyDo": [
@@ -223,7 +212,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   ],
   "keywords": ["kw1","kw2","kw3","kw4","kw5","kw6","kw7","kw8"],
   "signals": [
-    "Warning: ${company.website} was not accessible — signals are inferred, not scraped",
+    "Warning: ${company.website} was not accessible - signals are inferred, not scraped",
     "Stage signal (${company.stage}): typical velocity for this stage",
     "Sector signal (${company.sector}): competitive dynamics inferred",
     "Re-run enrichment when site becomes accessible for real signals"
@@ -231,56 +220,58 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   "sources": []
 }`;
 
-  // Use gemini-2.0-flash — stable, free tier, confirmed working on v1beta
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
+  const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
+  const reqBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 2048,
+      responseMimeType: "application/json",
     },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
-        // Forces the model to return valid JSON — eliminates markdown fences and preamble
-        responseMimeType: "application/json",
-      },
-    }),
   });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error(`[gemini] ${res.status}:`, errText);
-    if (res.status === 400) throw new Error("Invalid Gemini API key. Check GEMINI_API_KEY in Vercel environment variables.");
-    if (res.status === 429) throw new Error("Gemini rate limit hit. Wait a moment and try again.");
-    throw new Error(`Gemini API error: ${res.status}`);
+  // Retry up to 3 times on 429 rate limit responses
+  let res: Response | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    res = await fetch(GEMINI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: reqBody,
+    });
+    if (res.status !== 429) break;
+    console.warn(`[gemini] 429 on attempt ${attempt}, waiting ${attempt * 2}s...`);
+    await new Promise(r => setTimeout(r, attempt * 2000));
+  }
+
+  if (!res || !res.ok) {
+    const errText = await res?.text() ?? "";
+    console.error(`[gemini] ${res?.status}:`, errText);
+    if (res?.status === 400) throw new Error("Invalid Gemini API key. Check GEMINI_API_KEY in Vercel environment variables.");
+    if (res?.status === 429) throw new Error("Gemini free tier rate limit exceeded. Please wait a minute and try again.");
+    throw new Error(`Gemini API error: ${res?.status}`);
   }
 
   const data = await res.json();
-
-  // Extract text from Gemini response structure
-  const rawText: string =
-    data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const rawText: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
   if (!rawText) throw new Error("Gemini returned an empty response. Try again.");
 
-  // Parse JSON — with responseMimeType set, this should always be clean JSON
+  // Parse JSON - responseMimeType ensures clean output, fallbacks just in case
   let parsed;
   try {
     parsed = JSON.parse(rawText);
   } catch {
     try {
-      // Fallback: strip any accidental fences and retry
       const stripped = rawText
         .replace(/^```(?:json)?\s*/im, "")
         .replace(/\s*```\s*$/im, "")
         .trim();
       parsed = JSON.parse(stripped);
     } catch {
-      // Last resort: extract the first complete JSON object
       const match = rawText.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Could not parse Gemini response as JSON. Try again.");
       parsed = JSON.parse(match[0]);
@@ -300,7 +291,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   };
 }
 
-// ─── ROUTE HANDLER ───────────────────────────────────────────────────────────
+// --- ROUTE HANDLER ---
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -311,7 +302,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Rate limit
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
@@ -332,7 +322,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Parse body
   let body: EnrichRequest;
   try {
     body = await req.json();
@@ -348,7 +337,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Scrape
   let scrape: ScrapeResult;
   try {
     scrape = await scrapeCompany(company.website);
@@ -360,7 +348,6 @@ export async function POST(req: NextRequest) {
     scrape = { scrapedText: "", successfulUrls: [], attemptedUrls: [] };
   }
 
-  // LLM extraction
   let result: EnrichmentResult;
   try {
     result = await callGemini(apiKey, company, scrape);
@@ -371,10 +358,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     { result },
-    {
-      headers: {
-        "X-RateLimit-Remaining": String(remaining),
-      },
-    }
+    { headers: { "X-RateLimit-Remaining": String(remaining) } }
   );
 }
