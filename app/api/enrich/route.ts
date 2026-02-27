@@ -231,12 +231,15 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
   "sources": []
 }`;
 
-  // FIX: Use gemini-1.5-flash (stable) + responseMimeType to force JSON output
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  // Use gemini-2.0-flash — stable, free tier, confirmed working on v1beta
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
