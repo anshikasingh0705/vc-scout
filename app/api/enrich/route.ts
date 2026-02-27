@@ -241,7 +241,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         // Forces the model to return valid JSON — eliminates markdown fences and preamble
         responseMimeType: "application/json",
       },
