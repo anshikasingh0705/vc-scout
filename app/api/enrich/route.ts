@@ -262,19 +262,29 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
 
   if (!rawText) throw new Error("Gemini returned an empty response. Try again.");
 
-  const cleaned = rawText
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
+  // Robustly extract JSON from Gemini response
+  // Gemini 2.5 often wraps output in markdown fences and adds preamble text
   let parsed;
   try {
-    parsed = JSON.parse(cleaned);
+    // Strategy 1: strip fences and parse directly
+    const stripped = rawText
+      .replace(/^```(?:json)?\s*/im, "")
+      .replace(/\s*```\s*$/im, "")
+      .trim();
+    parsed = JSON.parse(stripped);
   } catch {
-    // Gemini sometimes wraps in extra text — try to extract JSON object
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Could not parse Gemini response as JSON. Try again.");
-    parsed = JSON.parse(match[0]);
+    try {
+      // Strategy 2: find the first { ... } block in the entire response
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("no JSON object found");
+      parsed = JSON.parse(match[0]);
+    } catch {
+      // Strategy 3: find last complete JSON object (sometimes model adds trailing text)
+      const matches = [...rawText.matchAll(/\{[\s\S]*?\}/g)];
+      const longest = matches.sort((a, b) => b[0].length - a[0].length)[0];
+      if (!longest) throw new Error("Could not parse Gemini response as JSON. Try again.");
+      parsed = JSON.parse(longest[0]);
+    }
   }
 
   return {
